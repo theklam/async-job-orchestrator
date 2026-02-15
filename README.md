@@ -54,6 +54,15 @@ curl http://localhost:8000/jobs
 
 Jobs sleep for N seconds (default 3), then return `{"slept_seconds": N, "message": "..."}`.
 
+## Checkpoint
+
+The system is considered working when:
+
+1. `docker compose up` starts all services
+2. `POST /jobs` returns a job ID
+3. The worker transitions the job to `succeeded`
+4. `GET /jobs/{id}` returns the final result
+
 ## Project Structure
 
 ```
