@@ -7,15 +7,15 @@ A minimal async job processing system with FastAPI, a background worker, and Pos
 ## Architecture
 
 ```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   Client    │────▶│  API (FastAPI)│────▶│  Postgres   │
-└─────────────┘     └─────────────┘     └──────┬──────┘
-                                               │
-                                               │ polls
-                                               ▼
-                                        ┌─────────────┐
-                                        │   Worker    │
-                                        └─────────────┘
+┌──────────┐     ┌────────────────┐     ┌────────────┐
+│  Client  │────▶│  API (FastAPI) │────▶│  Postgres  │
+└──────────┘     └────────────────┘     └─────┬──────┘
+                                              │
+                                              │ polls
+                                              ▼
+                                        ┌──────────┐
+                                        │  Worker  │
+                                        └──────────┘
 ```
 
 - **API**: Accepts job requests, writes to Postgres, returns job status
