@@ -1,6 +1,8 @@
 # async-job-orchestrator
 
-A minimal async job queue: FastAPI + Worker + Postgres. No Redis, no Celery.
+A minimal async job processing system built with FastAPI, a background worker, and Postgres.
+
+The API enqueues jobs, and a separate worker process polls the database to execute them asynchronously. This project focuses on a simple, working local prototype without external queue systems.
 
 ## Architecture
 
