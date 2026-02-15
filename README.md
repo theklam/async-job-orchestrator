@@ -10,10 +10,10 @@ A minimal async job processing system with FastAPI, a background worker, and Pos
 ┌──────────┐     ┌────────────────┐     ┌────────────┐
 │  Client  │────▶│  API (FastAPI) │────▶│  Postgres  │
 └──────────┘     └────────────────┘     └─────┬──────┘
-                                              │
+                                              ▲
                                               │ polls
-                                              ▼
-                                        ┌──────────┐
+                                              │
+                                        ┌─────┴────┐
                                         │  Worker  │
                                         └──────────┘
 ```
