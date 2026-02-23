@@ -52,7 +52,7 @@ curl http://localhost:8000/jobs
 
 `queued` → `running` → `succeeded` / `failed`
 
-Jobs sleep for N seconds (default 3), then return `{"slept_seconds": N, "message": "..."}`.
+Jobs sleep for N seconds (default 3), then return `{"slept_for": N, "echo": "..."}`.
 
 ## Checkpoint
 
