@@ -8,3 +8,4 @@ RUN pip install --no-cache-dir -r api/requirements.txt -r worker/requirements.tx
 
 COPY api/ api/
 COPY worker/ worker/
+COPY spotify-2023.csv /app/spotify-2023.csv

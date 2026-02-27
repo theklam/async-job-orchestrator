@@ -1,19 +1,38 @@
+import json
 import os
 from contextlib import asynccontextmanager
+from typing import Annotated, Literal, Union
 from uuid import UUID
 
 import asyncpg
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 DATABASE_URL = os.environ["DATABASE_URL"]
 
 pool: asyncpg.Pool
 
 
-class JobCreate(BaseModel):
+class SleepJobCreate(BaseModel):
+    job_type: Literal["sleep"] = "sleep"
     sleep_seconds: int = 3
     message: str | None = None
+
+
+class IngestDatasetJobCreate(BaseModel):
+    job_type: Literal["ingest_dataset"]
+    csv_path: str | None = None  # defaults to /app/spotify-2023.csv in worker
+
+
+class FindComparablesJobCreate(BaseModel):
+    job_type: Literal["find_comparables"]
+    track_name: str
+
+
+JobCreate = Annotated[
+    Union[SleepJobCreate, IngestDatasetJobCreate, FindComparablesJobCreate],
+    Field(discriminator="job_type"),
+]
 
 
 @asynccontextmanager
@@ -29,12 +48,24 @@ app = FastAPI(lifespan=lifespan)
 
 @app.post("/jobs", status_code=201)
 async def create_job(body: JobCreate):
+    data = body.model_dump()
+    job_type = data.pop("job_type")
+
+    if job_type == "sleep":
+        sleep_seconds = data.get("sleep_seconds", 3)
+        message = data.get("message")
+        payload = None
+    else:
+        sleep_seconds = 0
+        message = None
+        payload = json.dumps(data)
+
     row = await pool.fetchrow(
-        "INSERT INTO jobs (sleep_seconds, message) VALUES ($1, $2) RETURNING id, status",
-        body.sleep_seconds,
-        body.message,
+        "INSERT INTO jobs (job_type, sleep_seconds, message, payload) "
+        "VALUES ($1, $2, $3, $4) RETURNING id, status, job_type",
+        job_type, sleep_seconds, message, payload,
     )
-    return {"id": str(row["id"]), "status": row["status"]}
+    return {"id": str(row["id"]), "status": row["status"], "job_type": row["job_type"]}
 
 
 @app.get("/jobs/{job_id}")
@@ -52,12 +83,12 @@ async def list_jobs():
 
 
 def _row_to_dict(row: asyncpg.Record) -> dict:
-    import json
-
     d = dict(row)
     d["id"] = str(d["id"])
     d["created_at"] = d["created_at"].isoformat()
     d["updated_at"] = d["updated_at"].isoformat()
     if d["result"] is not None:
         d["result"] = json.loads(d["result"])
+    if d.get("payload") is not None:
+        d["payload"] = json.loads(d["payload"])
     return d
