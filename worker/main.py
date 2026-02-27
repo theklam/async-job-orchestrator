@@ -44,7 +44,7 @@ def safe_int(val):
 
 
 def handle_ingest_dataset(conn, job_id, payload):
-    payload_data = json.loads(payload) if payload else {}
+    payload_data = payload if isinstance(payload, dict) else (json.loads(payload) if payload else {})
     csv_path = payload_data.get("csv_path") or DATASET_PATH
 
     print(f"Job {job_id}: ingesting dataset from {csv_path}")
@@ -55,7 +55,7 @@ def handle_ingest_dataset(conn, job_id, payload):
     rows_inserted = 0
     rows_skipped = 0
 
-    with open(csv_path, newline="", encoding="utf-8-sig") as f:
+    with open(csv_path, newline="", encoding="latin-1") as f:
         reader = csv.DictReader(f)
         with conn.cursor() as cur:
             for row in reader:
@@ -157,7 +157,7 @@ def _euclidean(a, b):
 
 
 def handle_find_comparables(conn, job_id, payload):
-    payload_data = json.loads(payload) if payload else {}
+    payload_data = payload if isinstance(payload, dict) else (json.loads(payload) if payload else {})
     track_name = payload_data.get("track_name", "").strip()
 
     print(f"Job {job_id}: finding comparables for '{track_name}'")
