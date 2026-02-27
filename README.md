@@ -26,15 +26,71 @@ docker compose up --build
 
 This starts Postgres, API (port 8000), and Worker.
 
-## Usage
+If you are rebuilding after a schema change, drop the DB volume first:
 
-### Create a job
+```bash
+docker compose down -v && docker compose up --build
+```
+
+## Job Types
+
+### `sleep` (default)
+
+Sleeps for N seconds and echoes a message back. Useful for testing the pipeline.
 
 ```bash
 curl -X POST http://localhost:8000/jobs \
   -H "Content-Type: application/json" \
-  -d '{"sleep_seconds": 3, "message": "hello"}'
+  -d '{"job_type": "sleep", "sleep_seconds": 3, "message": "hello"}'
 ```
+
+Result: `{"slept_for": 3, "echo": "hello"}`
+
+---
+
+### `ingest_dataset`
+
+Parses `spotify-2023.csv` (953 songs) and loads it into the `spotify_tracks` table. Idempotent — truncates and reloads on each run.
+
+```bash
+curl -X POST http://localhost:8000/jobs \
+  -H "Content-Type: application/json" \
+  -d '{"job_type": "ingest_dataset"}'
+```
+
+Result: `{"rows_inserted": 953, "rows_skipped": 0}`
+
+Must be run before `find_comparables`.
+
+---
+
+### `find_comparables`
+
+Given a track name, finds the 10 most similar songs in the dataset using weighted Euclidean distance across two feature groups:
+
+- **Audio** (8 dims): danceability, valence, energy, acousticness, instrumentalness, liveness, speechiness, bpm
+- **Market** (4 dims): streams, Spotify playlists, Apple playlists, Deezer playlists
+
+Both groups are min-max normalized independently, then blended 50/50.
+
+```bash
+curl -X POST http://localhost:8000/jobs \
+  -H "Content-Type: application/json" \
+  -d '{"job_type": "find_comparables", "track_name": "Cruel Summer"}'
+```
+
+Result:
+```json
+{
+  "query": "Cruel Summer",
+  "comparables": [
+    {"rank": 1, "track_name": "Jimmy Cooks (feat. 21 Savage)", "artists": "Drake, 21 Savage", "distance": 0.16062},
+    ...
+  ]
+}
+```
+
+## Usage
 
 ### Check job status
 
@@ -52,23 +108,15 @@ curl http://localhost:8000/jobs
 
 `queued` → `running` → `succeeded` / `failed`
 
-Jobs sleep for N seconds (default 3), then return `{"slept_for": N, "echo": "..."}`.
-
-## Checkpoint
-
-The system is considered working when:
-
-1. `docker compose up` starts all services
-2. `POST /jobs` returns a job ID
-3. The worker transitions the job to `succeeded`
-4. `GET /jobs/{id}` returns the final result
+Jobs are processed asynchronously. `POST /jobs` returns immediately with a job ID; poll `GET /jobs/{id}` to read the result once the worker completes it.
 
 ## Project Structure
 
 ```
-├── api/           # FastAPI service
-├── worker/        # Background job processor
-├── db/init.sql    # Schema
+├── api/              # FastAPI service
+├── worker/           # Background job processor
+├── db/init.sql       # Schema (jobs + spotify_tracks)
+├── spotify-2023.csv  # Source dataset (953 tracks)
 └── docker-compose.yml
 ```
 
